@@ -495,7 +495,7 @@ def create_setwaveform_packet(
         waveform: Effect type (SAW, SINE, HALF_SINE, TRIANGLE, PULSE)
     """
     payload = struct.pack(
-        '<BBHHHHIFHB',
+        '<BBHHHHIfhB',
         0,                  # reserved
         1 if transient else 0,
         hsbk.hue,
@@ -505,7 +505,7 @@ def create_setwaveform_packet(
         period,
         cycles,
         skew_ratio,
-        waveform.value
+        waveform.value if hasattr(waveform, 'value') else waveform
     )
     header = create_lifx_header(
         message_type=SETWAVEFORM_TYPE,

@@ -18,7 +18,7 @@ A Python library and command-line tools for controlling LIFX smart lights over t
 - LIFX devices on the same local network
 - UDP port 56700 accessible (not blocked by firewall)
 
-No external dependencies required - uses only Python standard library.
+Core tools use only Python standard library. The TUI requires the `textual` library.
 
 ## Files
 
@@ -27,12 +27,17 @@ No external dependencies required - uses only Python standard library.
 | `lifx_protocol.py` | Shared library with protocol implementation |
 | `lifx_scanner.py` | Simple device discovery tool |
 | `lifx_control.py` | Full-featured device controller |
+| `lifx_tui.py` | Interactive terminal user interface |
 
 ## Quick Start
 
 ```bash
 # Discover devices on your network
 python3 lifx_scanner.py
+
+# Launch the interactive TUI
+pip install textual  # One-time setup
+python3 lifx_tui.py
 
 # Scan with the controller (shows more details)
 python3 lifx_control.py scan
@@ -210,6 +215,74 @@ python3 lifx_control.py info all --json
 ```
 
 Shows: product name, firmware version, WiFi signal strength, location, group, uptime, and capability-specific info (infrared level, zone colors, etc.)
+
+---
+
+### lifx_tui.py
+
+Interactive terminal user interface for controlling lights with a visual interface.
+
+```bash
+# Install requirement (one time)
+pip install textual
+
+# Launch the TUI
+python3 lifx_tui.py
+
+# Specify network subnet
+python3 lifx_tui.py -s 192.168.1.0/24
+```
+
+**Features:**
+- **Device Sidebar** - Lists all discovered lights with power status indicators
+- **Real-time Control** - Adjust colors instantly as you move sliders
+- **HSB Sliders** - Control Hue (0-360°), Saturation (0-100%), Brightness (0-100%)
+- **Kelvin Slider** - Adjust white temperature (1500K-9000K)
+- **Color Presets** - Quick buttons for Red, Orange, Yellow, Green, Cyan, Blue, Purple, Pink
+- **White Presets** - Warm (2700K), Neutral (4000K), Cool (5500K), Daylight (6500K)
+- **Effects** - Pulse, Breathe, and Strobe effects
+
+**Keyboard Shortcuts:**
+| Key | Action |
+|-----|--------|
+| `r` | Refresh device list |
+| `p` | Toggle power on selected device |
+| `↑/↓` | Adjust slider value by 1 |
+| `←/→` | Adjust slider value by 10 |
+| `q` | Quit application |
+
+**Screenshot Layout:**
+```
+┌────────────────────────────────────────────────────────────────────┐
+│ LIFX Controller                                                    │
+├──────────────────────┬─────────────────────────────────────────────┤
+│ 💡 LIFX Devices      │ 🔆 Living Room                              │
+│ [🔄 Refresh]         │                                             │
+│                      │ ⚡ Power  [ON] [OFF]  Status: ON            │
+│ ● Living Room        │ ─────────────────────────────────────────── │
+│ ○ Bedroom            │ H:240° S:100% B:80% K:3500                  │
+│ ● Office             │ ─────────────────────────────────────────── │
+│                      │ 🎨 Color (HSB)                              │
+│                      │ Hue        ████████░░░░░░░░░░░░░░░░  240°   │
+│                      │ Saturation █████████████████████████  100%  │
+│                      │ Brightness ████████████████████░░░░░   80%  │
+│                      │ ─────────────────────────────────────────── │
+│                      │ 🌡️ White Temperature                        │
+│                      │ Kelvin     █████████░░░░░░░░░░░░░░░  3500K  │
+│                      │ ─────────────────────────────────────────── │
+│ 3 device(s)          │ 🎯 Color Presets                            │
+│                      │ [Red] [Orange] [Yellow] [Green]             │
+│                      │ [Cyan] [Blue] [Purple] [Pink]               │
+│                      │ ─────────────────────────────────────────── │
+│                      │ 💡 White Presets                            │
+│                      │ [Warm] [Neutral] [Cool] [Daylight]          │
+│                      │ ─────────────────────────────────────────── │
+│                      │ ✨ Effects                                  │
+│                      │ [Pulse] [Breathe] [Strobe]                  │
+├──────────────────────┴─────────────────────────────────────────────┤
+│ q Quit  r Refresh  p Power                                         │
+└────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
