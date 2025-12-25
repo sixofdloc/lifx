@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LIFX Controller</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        :root {
+            --bg: #1a1a2e;
+            --card: #16213e;
+            --accent: #0f3460;
+            --text: #eee;
+            --text-muted: #888;
+            --success: #4ade80;
+            --error: #f87171;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 1rem;
+        }
+        
+        header {
+            text-align: center;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        
+        .toolbar {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            margin-top: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .toolbar button {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            background: var(--accent);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        
+        .toolbar button:hover {
+            opacity: 0.9;
+        }
+        
+        .toolbar button.on {
+            background: var(--success);
+            color: #000;
+        }
+        
+        .toolbar button.off {
+            background: var(--error);
+            color: #000;
+        }
+        
+        .devices {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .device {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 1rem;
+            transition: transform 0.2s;
+        }
+        
+        .device:hover {
+            transform: translateY(-2px);
+        }
+        
+        .device-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .device-name {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+        
+        .device-status {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+        
+        .power-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: all 0.2s;
+        }
+        
+        .power-btn.on {
+            background: var(--success);
+            box-shadow: 0 0 20px rgba(74, 222, 128, 0.5);
+        }
+        
+        .power-btn.off {
+            background: #333;
+            color: #666;
+        }
+        
+        .color-preview {
+            height: 40px;
+            border-radius: 8px;
+            margin: 1rem 0;
+            border: 2px solid rgba(255,255,255,0.1);
+        }
+        
+        .sliders {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .slider-row label {
+            width: 80px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+        
+        .slider-row input[type="range"] {
+            flex: 1;
+            height: 8px;
+            border-radius: 4px;
+            -webkit-appearance: none;
+            background: var(--accent);
+        }
+        
+        .slider-row input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--text);
+            cursor: pointer;
+        }
+        
+        .slider-row .value {
+            width: 50px;
+            text-align: right;
+            font-size: 0.85rem;
+            font-family: monospace;
+        }
+        
+        .presets {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        
+        .preset-btn {
+            padding: 0.4rem 0.8rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            color: #000;
+            font-weight: 500;
+        }
+        
+        .preset-btn.red { background: #ef4444; }
+        .preset-btn.orange { background: #f97316; }
+        .preset-btn.yellow { background: #eab308; }
+        .preset-btn.green { background: #22c55e; }
+        .preset-btn.cyan { background: #06b6d4; }
+        .preset-btn.blue { background: #3b82f6; }
+        .preset-btn.purple { background: #a855f7; }
+        .preset-btn.pink { background: #ec4899; }
+        .preset-btn.warm { background: #fcd34d; }
+        .preset-btn.neutral { background: #fef3c7; }
+        .preset-btn.cool { background: #bfdbfe; }
+        .preset-btn.daylight { background: #f0f9ff; }
+        
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-muted);
+        }
+        
+        .no-devices {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-muted);
+        }
+        
+        @media (max-width: 600px) {
+            .devices {
+                grid-template-columns: 1fr;
+            }
+            
+            .presets {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>LIFX Controller</h1>
+        <div class="toolbar">
+            <button onclick="refreshDevices()">Refresh</button>
+            <button class="on" onclick="allPower(true)">All On</button>
+            <button class="off" onclick="allPower(false)">All Off</button>
+        </div>
+    </header>
+    
+    <main>
+        <div id="loading" class="loading">Scanning for lights...</div>
+        <div id="no-devices" class="no-devices" style="display:none">No lights found. Click Refresh to scan again.</div>
+        <div id="devices" class="devices"></div>
+    </main>
+    
+    <script>
+        const API = '';
+        let devices = [];
+        let debounceTimers = {};
+        
+        // Convert HSB to CSS color
+        function hsbToRgb(h, s, b) {
+            s /= 100;
+            b /= 100;
+            const k = (n) => (n + h / 60) % 6;
+            const f = (n) => b * (1 - s * Math.max(0, Math.min(k(n), 4 - k(n), 1)));
+            return [Math.round(255 * f(5)), Math.round(255 * f(3)), Math.round(255 * f(1))];
+        }
+        
+        function kelvinToRgb(kelvin) {
+            const temp = kelvin / 100;
+            let r, g, b;
+            
+            if (temp <= 66) {
+                r = 255;
+                g = Math.min(255, Math.max(0, 99.4708025861 * Math.log(temp) - 161.1195681661));
+            } else {
+                r = Math.min(255, Math.max(0, 329.698727446 * Math.pow(temp - 60, -0.1332047592)));
+                g = Math.min(255, Math.max(0, 288.1221695283 * Math.pow(temp - 60, -0.0755148492)));
+            }
+            
+            if (temp >= 66) {
+                b = 255;
+            } else if (temp <= 19) {
+                b = 0;
+            } else {
+                b = Math.min(255, Math.max(0, 138.5177312231 * Math.log(temp - 10) - 305.0447927307));
+            }
+            
+            return [Math.round(r), Math.round(g), Math.round(b)];
+        }
+        
+        function getPreviewColor(device) {
+            if (device.saturation < 10) {
+                // White - use kelvin
+                const [r, g, b] = kelvinToRgb(device.kelvin);
+                const brightness = device.brightness / 100;
+                return `rgb(${Math.round(r * brightness)}, ${Math.round(g * brightness)}, ${Math.round(b * brightness)})`;
+            } else {
+                // Color - use HSB
+                const [r, g, b] = hsbToRgb(device.hue, device.saturation, device.brightness);
+                return `rgb(${r}, ${g}, ${b})`;
+            }
+        }
+        
+        function renderDevices() {
+            const container = document.getElementById('devices');
+            const loading = document.getElementById('loading');
+            const noDevices = document.getElementById('no-devices');
+            
+            loading.style.display = 'none';
+            
+            if (devices.length === 0) {
+                noDevices.style.display = 'block';
+                container.innerHTML = '';
+                return;
+            }
+            
+            noDevices.style.display = 'none';
+            
+            container.innerHTML = devices.map(d => `
+                <div class="device" data-serial="${d.serial}">
+                    <div class="device-header">
+                        <div>
+                            <div class="device-name">${d.label}</div>
+                            <div class="device-status">${d.ip}</div>
+                        </div>
+                        <button class="power-btn ${d.power ? 'on' : 'off'}" onclick="togglePower('${d.serial}')">
+                            ${d.power ? '●' : '○'}
+                        </button>
+                    </div>
+                    
+                    <div class="color-preview" id="preview-${d.serial}" style="background: ${getPreviewColor(d)}"></div>
+                    
+                    <div class="sliders">
+                        <div class="slider-row">
+                            <label>Hue</label>
+                            <input type="range" min="0" max="360" value="${d.hue}" 
+                                   oninput="updateSlider('${d.serial}', 'hue', this.value)"
+                                   style="background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)">
+                            <span class="value" id="hue-val-${d.serial}">${d.hue}°</span>
+                        </div>
+                        <div class="slider-row">
+                            <label>Saturation</label>
+                            <input type="range" min="0" max="100" value="${d.saturation}"
+                                   oninput="updateSlider('${d.serial}', 'sat', this.value)">
+                            <span class="value" id="sat-val-${d.serial}">${d.saturation}%</span>
+                        </div>
+                        <div class="slider-row">
+                            <label>Brightness</label>
+                            <input type="range" min="0" max="100" value="${d.brightness}"
+                                   oninput="updateSlider('${d.serial}', 'bright', this.value)">
+                            <span class="value" id="bright-val-${d.serial}">${d.brightness}%</span>
+                        </div>
+                        <div class="slider-row">
+                            <label>Kelvin</label>
+                            <input type="range" min="1500" max="9000" value="${d.kelvin}"
+                                   oninput="updateSlider('${d.serial}', 'kelvin', this.value)"
+                                   style="background: linear-gradient(to right, #ff9329, #fff, #c9e2ff)">
+                            <span class="value" id="kelvin-val-${d.serial}">${d.kelvin}K</span>
+                        </div>
+                    </div>
+                    
+                    <div class="presets">
+                        <button class="preset-btn red" onclick="applyPreset('${d.serial}', 'red')">Red</button>
+                        <button class="preset-btn orange" onclick="applyPreset('${d.serial}', 'orange')">Orange</button>
+                        <button class="preset-btn yellow" onclick="applyPreset('${d.serial}', 'yellow')">Yellow</button>
+                        <button class="preset-btn green" onclick="applyPreset('${d.serial}', 'green')">Green</button>
+                        <button class="preset-btn cyan" onclick="applyPreset('${d.serial}', 'cyan')">Cyan</button>
+                        <button class="preset-btn blue" onclick="applyPreset('${d.serial}', 'blue')">Blue</button>
+                        <button class="preset-btn purple" onclick="applyPreset('${d.serial}', 'purple')">Purple</button>
+                        <button class="preset-btn pink" onclick="applyPreset('${d.serial}', 'pink')">Pink</button>
+                        <button class="preset-btn warm" onclick="applyPreset('${d.serial}', 'warm')">Warm</button>
+                        <button class="preset-btn neutral" onclick="applyPreset('${d.serial}', 'neutral')">Neutral</button>
+                        <button class="preset-btn cool" onclick="applyPreset('${d.serial}', 'cool')">Cool</button>
+                        <button class="preset-btn daylight" onclick="applyPreset('${d.serial}', 'daylight')">Daylight</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function getDeviceState(serial) {
+            return devices.find(d => d.serial === serial);
+        }
+        
+        function updateDeviceState(serial, updates) {
+            const device = getDeviceState(serial);
+            if (device) {
+                Object.assign(device, updates);
+            }
+        }
+        
+        function updatePreview(serial) {
+            const device = getDeviceState(serial);
+            if (device) {
+                const preview = document.getElementById(`preview-${serial}`);
+                if (preview) {
+                    preview.style.background = getPreviewColor(device);
+                }
+            }
+        }
+        
+        async function refreshDevices() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('devices').innerHTML = '';
+            
+            try {
+                const res = await fetch(`${API}/api/refresh`, { method: 'POST' });
+                const data = await res.json();
+                devices = data.devices;
+                renderDevices();
+            } catch (e) {
+                console.error('Failed to refresh:', e);
+                document.getElementById('loading').textContent = 'Error connecting to server';
+            }
+        }
+        
+        async function loadDevices() {
+            try {
+                const res = await fetch(`${API}/api/devices`);
+                const data = await res.json();
+                devices = data.devices;
+                renderDevices();
+            } catch (e) {
+                console.error('Failed to load:', e);
+                document.getElementById('loading').textContent = 'Error connecting to server';
+            }
+        }
+        
+        async function togglePower(serial) {
+            const device = getDeviceState(serial);
+            if (!device) return;
+            
+            const newPower = !device.power;
+            device.power = newPower;
+            
+            // Update button immediately
+            const btn = document.querySelector(`[data-serial="${serial}"] .power-btn`);
+            if (btn) {
+                btn.className = `power-btn ${newPower ? 'on' : 'off'}`;
+                btn.textContent = newPower ? '●' : '○';
+            }
+            
+            await fetch(`${API}/api/device/${serial}/power`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ on: newPower })
+            });
+        }
+        
+        async function allPower(on) {
+            devices.forEach(d => d.power = on);
+            renderDevices();
+            
+            await fetch(`${API}/api/all/power`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ on })
+            });
+        }
+        
+        function updateSlider(serial, type, value) {
+            value = parseInt(value);
+            const device = getDeviceState(serial);
+            if (!device) return;
+            
+            // Update local state and display
+            if (type === 'hue') {
+                device.hue = value;
+                document.getElementById(`hue-val-${serial}`).textContent = `${value}°`;
+            } else if (type === 'sat') {
+                device.saturation = value;
+                document.getElementById(`sat-val-${serial}`).textContent = `${value}%`;
+            } else if (type === 'bright') {
+                device.brightness = value;
+                document.getElementById(`bright-val-${serial}`).textContent = `${value}%`;
+            } else if (type === 'kelvin') {
+                device.kelvin = value;
+                document.getElementById(`kelvin-val-${serial}`).textContent = `${value}K`;
+            }
+            
+            updatePreview(serial);
+            
+            // Debounce API call
+            clearTimeout(debounceTimers[serial]);
+            debounceTimers[serial] = setTimeout(() => sendColor(serial), 100);
+        }
+        
+        async function sendColor(serial) {
+            const device = getDeviceState(serial);
+            if (!device) return;
+            
+            await fetch(`${API}/api/device/${serial}/color`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    h: device.hue,
+                    s: device.saturation,
+                    b: device.brightness,
+                    k: device.kelvin
+                })
+            });
+        }
+        
+        async function applyPreset(serial, preset) {
+            const presets = {
+                red: { h: 0, s: 100, b: 100, k: 3500 },
+                orange: { h: 30, s: 100, b: 100, k: 3500 },
+                yellow: { h: 60, s: 100, b: 100, k: 3500 },
+                green: { h: 120, s: 100, b: 100, k: 3500 },
+                cyan: { h: 180, s: 100, b: 100, k: 3500 },
+                blue: { h: 240, s: 100, b: 100, k: 3500 },
+                purple: { h: 280, s: 100, b: 100, k: 3500 },
+                pink: { h: 330, s: 100, b: 100, k: 3500 },
+                warm: { h: 0, s: 0, b: 100, k: 2700 },
+                neutral: { h: 0, s: 0, b: 100, k: 4000 },
+                cool: { h: 0, s: 0, b: 100, k: 5500 },
+                daylight: { h: 0, s: 0, b: 100, k: 6500 },
+            };
+            
+            const p = presets[preset];
+            if (!p) return;
+            
+            // Update local state
+            const device = getDeviceState(serial);
+            if (device) {
+                device.hue = p.h;
+                device.saturation = p.s;
+                device.brightness = p.b;
+                device.kelvin = p.k;
+            }
+            
+            // Re-render to update sliders
+            renderDevices();
+            
+            await fetch(`${API}/api/device/${serial}/preset`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ preset })
+            });
+        }
+        
+        // Initial load
+        loadDevices();
+    </script>
+</body>
+</html>
