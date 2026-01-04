@@ -50,6 +50,8 @@ from lifx_protocol import (
     parse_light_state,
 )
 
+from lifx_effects import run_effect, stop_effect, list_effects
+
 
 # =============================================================================
 # LIFX Manager (shared state)
@@ -417,22 +419,27 @@ class LIFXHandler(BaseHTTPRequestHandler):
                 if action == 'effect':
                     effect = body.get('effect', 'breathe')
                     period = body.get('period', 1000)
-                    cycles = body.get('cycles', 5)
+                    cycles = body.get('cycles', 10)
                     
-                    target_brightness = 0 if effect in ('pulse', 'strobe') else int(device.brightness * 0.2)
-                    hsbk = HSBK(
-                        hue=device.hue,
-                        saturation=device.saturation,
-                        brightness=target_brightness,
+                    # Use the effects library
+                    brightness = device.brightness / 65535 if device.brightness else 1.0
+                    success = run_effect(
+                        device, effect,
+                        period=period,
+                        cycles=cycles,
+                        brightness=brightness,
                         kelvin=device.kelvin
                     )
                     
-                    waveform = Waveform.SINE if effect == 'breathe' else Waveform.PULSE
-                    if effect == 'strobe':
-                        period = min(period, 200)
-                    
-                    self.lifx.set_waveform(device, hsbk, waveform, period=period, cycles=cycles)
-                    self.send_json({'success': True, 'effect': effect})
+                    if success:
+                        self.send_json({'success': True, 'effect': effect})
+                    else:
+                        self.send_json({'error': f'Unknown effect: {effect}'}, 400)
+                    return
+                
+                if action == 'stop':
+                    stop_effect(device)
+                    self.send_json({'success': True})
                     return
         
         self.send_json({'error': 'Unknown endpoint'}, 404)

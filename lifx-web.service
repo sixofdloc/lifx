@@ -1,0 +1,17 @@
+[Unit]
+Description=LIFX Web Controller
+After=network.target
+
+[Service]
+Type=simple
+User=six
+WorkingDirectory=/home/six/Desktop/lifx
+ExecStart=/usr/bin/python3 /home/six/Desktop/lifx/lifx_web.py --port 6969
+Restart=on-failure
+RestartSec=5
+
+# Optional: Environment variables
+# Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

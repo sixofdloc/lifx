@@ -57,6 +57,8 @@ from lifx_protocol import (
     parse_light_state,
 )
 
+from lifx_effects import run_effect, stop_effect, list_effects
+
 
 # =============================================================================
 # LIFX Communication Layer
@@ -527,6 +529,11 @@ class ControlPanel(Container):
         margin: 0 1;
         min-width: 10;
     }
+    ControlPanel .effect-label {
+        color: $text-muted;
+        margin-top: 1;
+        margin-bottom: 0;
+    }
     ControlPanel TabbedContent {
         height: 1fr;
     }
@@ -580,14 +587,35 @@ class ControlPanel(Container):
                 
                 with TabPane("Effects", id="tab-effects"):
                     yield Slider("Period", 100, 5000, 1000, "ms", id="slider-period")
-                    yield Slider("Cycles", 1, 50, 5, "", id="slider-cycles")
+                    yield Slider("Cycles", 1, 50, 10, "", id="slider-cycles")
                     with Horizontal(classes="effect-row"):
                         yield Switch(value=False, id="switch-loop")
                         yield Static("Loop forever", id="loop-label")
+                    yield Static("Waveform", classes="effect-label")
                     with Horizontal(classes="effect-row"):
                         yield Button("Pulse", id="effect-pulse")
                         yield Button("Breathe", id="effect-breathe")
                         yield Button("Strobe", id="effect-strobe")
+                    yield Static("Color", classes="effect-label")
+                    with Horizontal(classes="effect-row"):
+                        yield Button("Rainbow", id="effect-rainbow")
+                        yield Button("Disco", id="effect-disco")
+                        yield Button("Party", id="effect-party")
+                    yield Static("Ambient", classes="effect-label")
+                    with Horizontal(classes="effect-row"):
+                        yield Button("Candle", id="effect-candle")
+                        yield Button("Relax", id="effect-relax")
+                    with Horizontal(classes="effect-row"):
+                        yield Button("Sunrise", id="effect-sunrise")
+                        yield Button("Sunset", id="effect-sunset")
+                    yield Static("Matrix (Ceiling/Tile)", classes="effect-label")
+                    with Horizontal(classes="effect-row"):
+                        yield Button("Rainbow", id="effect-matrix_rainbow")
+                        yield Button("Wave", id="effect-matrix_wave")
+                        yield Button("Flame", id="effect-matrix_flame")
+                    with Horizontal(classes="effect-row"):
+                        yield Button("Morph", id="effect-matrix_morph")
+                        yield Button("Sky", id="effect-matrix_sky")
                     with Horizontal(classes="effect-row"):
                         yield Button("Stop", id="effect-stop", variant="error")
     
@@ -815,7 +843,7 @@ class LIFXApp(App):
             self.lifx.set_color(self.selected_device, hsbk, duration=250)
     
     def _apply_effect(self, effect: str) -> None:
-        """Apply an effect."""
+        """Apply an effect using the effects library."""
         if not self.selected_device:
             return
         
@@ -823,55 +851,40 @@ class LIFXApp(App):
         period = int(self.query_one("#slider-period", Slider).value)
         loop = self.query_one("#switch-loop", Switch).value
         
-        # If loop is enabled, use a very large cycle count (effectively infinite)
+        # If loop is enabled, use 0 for infinite cycles
         # Otherwise use the slider value
         if loop:
-            cycles = 1000000.0  # ~11.5 days at 1 second period
+            cycles = 0  # Infinite
         else:
             cycles = self.query_one("#slider-cycles", Slider).value
         
-        # For effects, we create a target HSBK that defines the "off" state
-        # The waveform oscillates between current color and this target
+        # Get device brightness for effects
+        brightness = self.selected_device.brightness / 65535 if self.selected_device.brightness else 1.0
         
-        if effect == "pulse":
-            # Pulse to dim/off and back (brightness oscillation)
-            hsbk = HSBK(
-                hue=self.selected_device.hue,
-                saturation=self.selected_device.saturation,
-                brightness=0,  # Pulse to off
-                kelvin=self.selected_device.kelvin
-            )
-            self.lifx.set_waveform(self.selected_device, hsbk, Waveform.PULSE, period=period, cycles=cycles)
-        elif effect == "breathe":
-            # Slow sine wave breathing (brightness oscillation)
-            hsbk = HSBK(
-                hue=self.selected_device.hue,
-                saturation=self.selected_device.saturation,
-                brightness=int(self.selected_device.brightness * 0.2),  # Breathe to 20%
-                kelvin=self.selected_device.kelvin
-            )
-            self.lifx.set_waveform(self.selected_device, hsbk, Waveform.SINE, period=period, cycles=cycles)
-        elif effect == "strobe":
-            # Fast strobe effect (override period for safety)
-            hsbk = HSBK(
-                hue=self.selected_device.hue,
-                saturation=self.selected_device.saturation,
-                brightness=0,  # Strobe to off
-                kelvin=self.selected_device.kelvin
-            )
-            # Strobe uses shorter period for quick flashing
-            strobe_period = min(period, 200)  # Cap at 200ms for strobe
-            self.lifx.set_waveform(self.selected_device, hsbk, Waveform.PULSE, period=strobe_period, cycles=cycles)
+        # Use the effects library
+        success = run_effect(
+            self.selected_device, effect,
+            period=period,
+            cycles=cycles,
+            brightness=brightness,
+            kelvin=self.selected_device.kelvin
+        )
         
-        if loop:
-            self.notify(f"Effect: {effect} (looping)")
+        if success:
+            if loop:
+                self.notify(f"Effect: {effect} (looping)")
+            else:
+                self.notify(f"Effect: {effect} ({period}ms, {cycles:.0f}x)")
         else:
-            self.notify(f"Effect: {effect} ({period}ms, {cycles:.0f}x)")
+            self.notify(f"Unknown effect: {effect}", severity="error")
     
     def _stop_effect(self) -> None:
-        """Stop any running effect by setting the light to its current color."""
+        """Stop any running effect."""
         if not self.selected_device:
             return
+        
+        # Stop effect using the effects library
+        stop_effect(self.selected_device)
         
         # Refresh the device state and set it to current values
         self.lifx.refresh_device(self.selected_device)

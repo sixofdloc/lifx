@@ -78,6 +78,16 @@ STATEMULTIZONEEFFECT_TYPE = 509
 GETEXTENDEDCOLORZONES_TYPE = 511
 STATEEXTENDEDCOLORZONES_TYPE = 512
 
+# Tile/Matrix
+GETDEVICECHAIN_TYPE = 701
+STATEDEVICECHAIN_TYPE = 702
+GET64_TYPE = 707
+SET64_TYPE = 715
+STATE64_TYPE = 711
+GETTILEEFFECT_TYPE = 718
+SETTILEEFFECT_TYPE = 719
+STATETILEEFFECT_TYPE = 720
+
 # Acknowledgement
 ACKNOWLEDGEMENT_TYPE = 45
 
@@ -208,6 +218,19 @@ LIFX_PRODUCTS = {
     118: {"name": "LIFX String", "features": {"color": True, "chain": False, "matrix": False, "infrared": False, "multizone": True, "extended_multizone": True, "hev": False, "temperature_range": [1500, 9000]}},
     119: {"name": "LIFX Neon", "features": {"color": True, "chain": False, "matrix": False, "infrared": False, "multizone": True, "extended_multizone": True, "hev": False, "temperature_range": [1500, 9000]}},
     120: {"name": "LIFX Neon", "features": {"color": True, "chain": False, "matrix": False, "infrared": False, "multizone": True, "extended_multizone": True, "hev": False, "temperature_range": [1500, 9000]}},
+    137: {"name": "LIFX Candle Color US", "features": {"color": True, "chain": False, "matrix": True, "infrared": False, "multizone": False, "hev": False, "temperature_range": [1500, 9000]}},
+    138: {"name": "LIFX Candle Colour Intl", "features": {"color": True, "chain": False, "matrix": True, "infrared": False, "multizone": False, "hev": False, "temperature_range": [1500, 9000]}},
+    171: {"name": "LIFX Round Spot US", "features": {"color": True, "chain": False, "matrix": True, "infrared": False, "multizone": False, "hev": False, "temperature_range": [1500, 9000]}},
+    173: {"name": "LIFX Round Path US", "features": {"color": True, "chain": False, "matrix": True, "infrared": False, "multizone": False, "hev": False, "temperature_range": [1500, 9000]}},
+    174: {"name": "LIFX Square Path US", "features": {"color": True, "chain": False, "matrix": True, "infrared": False, "multizone": False, "hev": False, "temperature_range": [1500, 9000]}},
+    176: {"name": "LIFX Ceiling US", "features": {"color": True, "chain": False, "matrix": True, "infrared": False, "multizone": False, "hev": False, "temperature_range": [1500, 9000]}},
+    177: {"name": "LIFX Ceiling Intl", "features": {"color": True, "chain": False, "matrix": True, "infrared": False, "multizone": False, "hev": False, "temperature_range": [1500, 9000]}},
+    201: {"name": "LIFX Ceiling 13x26\" US", "features": {"color": True, "chain": False, "matrix": True, "infrared": False, "multizone": False, "hev": False, "temperature_range": [1500, 9000]}},
+    202: {"name": "LIFX Ceiling 13x26\" Intl", "features": {"color": True, "chain": False, "matrix": True, "infrared": False, "multizone": False, "hev": False, "temperature_range": [1500, 9000]}},
+    217: {"name": "LIFX Tube US", "features": {"color": True, "chain": False, "matrix": True, "infrared": False, "multizone": False, "hev": False, "temperature_range": [1500, 9000]}},
+    218: {"name": "LIFX Tube Intl", "features": {"color": True, "chain": False, "matrix": True, "infrared": False, "multizone": False, "hev": False, "temperature_range": [1500, 9000]}},
+    219: {"name": "LIFX Luna US", "features": {"color": True, "chain": False, "matrix": True, "infrared": False, "multizone": False, "hev": False, "buttons": True, "temperature_range": [1500, 9000]}},
+    220: {"name": "LIFX Luna Intl", "features": {"color": True, "chain": False, "matrix": True, "infrared": False, "multizone": False, "hev": False, "buttons": True, "temperature_range": [1500, 9000]}},
 }
 
 
@@ -938,3 +961,333 @@ def parse_state_multizone_effect(payload: bytes) -> Optional[dict]:
         }
     except struct.error:
         return None
+
+
+# =============================================================================
+# Tile/Matrix Functions
+# =============================================================================
+
+def create_getdevicechain_packet(source: int, target: bytes, sequence: int = 0) -> bytes:
+    """Create GetDeviceChain (packet 701) to get tile chain information."""
+    return create_lifx_header(
+        message_type=GETDEVICECHAIN_TYPE,
+        source=source,
+        target=target,
+        sequence=sequence
+    )
+
+
+def create_get64_packet(source: int, target: bytes, tile_index: int = 0, 
+                        length: int = 1, x: int = 0, y: int = 0, width: int = 8,
+                        sequence: int = 0) -> bytes:
+    """
+    Create Get64 (packet 707) to get 64 pixel colors from a tile.
+    
+    Args:
+        tile_index: Index of the tile in the chain (0-15)
+        length: Number of tiles to query (1-16)
+        x: Starting x coordinate (0-7)
+        y: Starting y coordinate (0-7) 
+        width: Width of the area to read (1-8)
+    """
+    payload = struct.pack('<BBBBBB', tile_index, length, 0, x, y, width)
+    header = create_lifx_header(
+        message_type=GET64_TYPE,
+        source=source,
+        target=target,
+        sequence=sequence,
+        payload_size=len(payload)
+    )
+    return header + payload
+
+
+def create_set64_packet(source: int, target: bytes, colors: list,
+                        tile_index: int = 0, length: int = 1, 
+                        x: int = 0, y: int = 0, width: int = 8,
+                        duration: int = 0, sequence: int = 0,
+                        ack_required: bool = False) -> bytes:
+    """
+    Create Set64 (packet 715) to set 64 pixel colors on a tile.
+    
+    Args:
+        colors: List of 64 HSBK tuples/objects [(h,s,b,k), ...] or [HSBK, ...]
+        tile_index: Index of the tile in the chain (0-15)
+        length: Number of tiles to set (usually 1)
+        x: Starting x coordinate (0-7)
+        y: Starting y coordinate (0-7)
+        width: Width of the pixel area (1-8)
+        duration: Transition time in milliseconds
+    """
+    # Pack colors - need exactly 64 HSBK values
+    colors_data = b''
+    for i in range(64):
+        if i < len(colors):
+            c = colors[i]
+            if hasattr(c, 'to_bytes'):
+                colors_data += c.to_bytes()
+            elif isinstance(c, (tuple, list)):
+                colors_data += struct.pack('<HHHH', c[0], c[1], c[2], c[3])
+            else:
+                colors_data += struct.pack('<HHHH', 0, 0, 0, 3500)  # default
+        else:
+            colors_data += struct.pack('<HHHH', 0, 0, 0, 3500)  # pad with black
+    
+    payload = struct.pack('<BBBBBBI', tile_index, length, 0, x, y, width, duration) + colors_data
+    header = create_lifx_header(
+        message_type=SET64_TYPE,
+        source=source,
+        target=target,
+        ack_required=ack_required,
+        sequence=sequence,
+        payload_size=len(payload)
+    )
+    return header + payload
+
+
+def create_gettileeffect_packet(source: int, target: bytes, sequence: int = 0) -> bytes:
+    """Create GetTileEffect (packet 718) to get current tile firmware effect."""
+    return create_lifx_header(
+        message_type=GETTILEEFFECT_TYPE,
+        source=source,
+        target=target,
+        sequence=sequence
+    )
+
+
+class TileEffect(IntEnum):
+    """Tile effect types for firmware-controlled effects."""
+    OFF = 0
+    RESERVED1 = 1
+    MORPH = 2
+    FLAME = 3
+    RESERVED2 = 4
+    SKY = 5
+
+
+def create_settileeffect_packet(
+    source: int,
+    target: bytes,
+    effect: TileEffect = TileEffect.OFF,
+    speed: int = 3000,
+    duration: int = 0,
+    sky_type: int = 0,
+    cloud_saturation_min: int = 0,
+    cloud_saturation_max: int = 0,
+    palette: list = None,
+    sequence: int = 0,
+    ack_required: bool = False
+) -> bytes:
+    """
+    Create SetTileEffect (packet 719) for firmware-controlled tile effects.
+    
+    Args:
+        effect: Effect type (OFF, MORPH, FLAME, SKY)
+        speed: Effect speed in milliseconds (3000-10000 typical)
+        duration: Effect duration in nanoseconds (0 = infinite)
+        sky_type: For SKY effect (0=sunrise, 1=sunset, 2=clouds)
+        palette: List of up to 16 HSBK colors for MORPH effect
+    """
+    instanceid = random.randint(1, 0xFFFFFFFF)
+    
+    # Build palette (16 colors max, 8 bytes each = 128 bytes)
+    palette_data = b''
+    if palette:
+        for i in range(16):
+            if i < len(palette):
+                c = palette[i]
+                if hasattr(c, 'to_bytes'):
+                    palette_data += c.to_bytes()
+                elif isinstance(c, (tuple, list)):
+                    palette_data += struct.pack('<HHHH', c[0], c[1], c[2], c[3])
+                else:
+                    palette_data += struct.pack('<HHHH', 0, 0, 0, 0)
+            else:
+                palette_data += struct.pack('<HHHH', 0, 0, 0, 0)
+    else:
+        palette_data = b'\x00' * 128
+    
+    palette_count = min(len(palette), 16) if palette else 0
+    
+    # Payload structure:
+    # reserved(1), reserved(1), instanceid(4), type(1), speed(4), duration(8),
+    # reserved(4), reserved(4), parameters[32], palette_count(1), palette[16*8]
+    # Total: 1+1+4+1+4+8+4+4+32+1+128 = 188 bytes
+    
+    # Parameters for SKY effect
+    parameters = struct.pack('<BBBH', sky_type, 0, cloud_saturation_min, cloud_saturation_max)
+    parameters += b'\x00' * (32 - len(parameters))  # Pad to 32 bytes
+    
+    payload = struct.pack(
+        '<BBIBIQ',
+        0,  # reserved
+        0,  # reserved  
+        instanceid,
+        effect.value if hasattr(effect, 'value') else effect,
+        speed,
+        duration
+    )
+    payload += struct.pack('<II', 0, 0)  # reserved
+    payload += parameters
+    payload += struct.pack('<B', palette_count)
+    payload += palette_data
+    
+    header = create_lifx_header(
+        message_type=SETTILEEFFECT_TYPE,
+        source=source,
+        target=target,
+        ack_required=ack_required,
+        sequence=sequence,
+        payload_size=len(payload)
+    )
+    return header + payload
+
+
+def parse_state_device_chain(payload: bytes) -> Optional[dict]:
+    """Parse StateDeviceChain (packet 702) payload - tile chain information."""
+    if len(payload) < 882:  # 1 + (55 * 16) + 1 = 882 bytes minimum
+        return None
+    try:
+        start_index = payload[0]
+        
+        # Parse up to 16 tile_device structures (55 bytes each)
+        tiles = []
+        for i in range(16):
+            offset = 1 + i * 55
+            if offset + 55 > len(payload):
+                break
+            
+            tile_data = payload[offset:offset+55]
+            accel_x, accel_y, accel_z = struct.unpack('<hhh', tile_data[0:6])
+            # reserved(2)
+            user_x = struct.unpack('<f', tile_data[8:12])[0]
+            user_y = struct.unpack('<f', tile_data[12:16])[0]
+            width = tile_data[16]
+            height = tile_data[17]
+            # reserved(1)
+            vendor = struct.unpack('<I', tile_data[19:23])[0]
+            product = struct.unpack('<I', tile_data[23:27])[0]
+            version = struct.unpack('<I', tile_data[27:31])[0]
+            
+            # Only add if the tile has valid dimensions
+            if width > 0 or height > 0:
+                tiles.append({
+                    'index': i,
+                    'accel_x': accel_x,
+                    'accel_y': accel_y,
+                    'accel_z': accel_z,
+                    'user_x': user_x,
+                    'user_y': user_y,
+                    'width': width,
+                    'height': height,
+                    'vendor': vendor,
+                    'product': product,
+                    'version': version
+                })
+        
+        total_count = payload[881] if len(payload) > 881 else len(tiles)
+        
+        return {
+            'start_index': start_index,
+            'total_count': total_count,
+            'tiles': tiles
+        }
+    except struct.error:
+        return None
+
+
+def parse_state64(payload: bytes) -> Optional[dict]:
+    """Parse State64 (packet 711) payload - 64 pixel colors from a tile."""
+    if len(payload) < 517:  # 5 + 512 = 517 bytes
+        return None
+    try:
+        tile_index = payload[0]
+        # reserved(1)
+        x = payload[2]
+        y = payload[3]
+        width = payload[4]
+        
+        colors = []
+        for i in range(64):
+            offset = 5 + i * 8
+            if offset + 8 > len(payload):
+                break
+            h, s, b, k = struct.unpack('<HHHH', payload[offset:offset+8])
+            colors.append(HSBK(h, s, b, k))
+        
+        return {
+            'tile_index': tile_index,
+            'x': x,
+            'y': y,
+            'width': width,
+            'colors': colors
+        }
+    except struct.error:
+        return None
+
+
+def parse_state_tile_effect(payload: bytes) -> Optional[dict]:
+    """Parse StateTileEffect (packet 720) payload."""
+    if len(payload) < 187:
+        return None
+    try:
+        instanceid = struct.unpack('<I', payload[2:6])[0]
+        effect_type = payload[6]
+        speed = struct.unpack('<I', payload[7:11])[0]
+        duration = struct.unpack('<Q', payload[11:19])[0]
+        
+        effect_names = {
+            0: 'OFF',
+            1: 'RESERVED1',
+            2: 'MORPH',
+            3: 'FLAME',
+            4: 'RESERVED2',
+            5: 'SKY'
+        }
+        
+        return {
+            'instanceid': instanceid,
+            'type': effect_type,
+            'type_name': effect_names.get(effect_type, f'UNKNOWN({effect_type})'),
+            'speed': speed,
+            'duration': duration
+        }
+    except struct.error:
+        return None
+
+
+def get_device_matrix_size(product_id: int) -> Optional[tuple]:
+    """
+    Get the matrix dimensions for a product if it has matrix support.
+    
+    Returns (width, height) tuple or None if not a matrix device.
+    """
+    product_info = LIFX_PRODUCTS.get(product_id)
+    if not product_info:
+        return None
+    
+    features = product_info.get('features', {})
+    if not features.get('matrix'):
+        return None
+    
+    # Known matrix device dimensions
+    matrix_sizes = {
+        55: (8, 8),   # LIFX Tile
+        57: (8, 1),   # LIFX Candle (single row of 8 LEDs)
+        68: (8, 1),   # LIFX Candle
+        100: (8, 1),  # LIFX Candle Color
+        137: (8, 1),  # LIFX Candle Color US
+        138: (8, 1),  # LIFX Candle Colour Intl
+        171: (8, 8),  # LIFX Round Spot US
+        173: (8, 8),  # LIFX Round Path US
+        174: (8, 8),  # LIFX Square Path US
+        176: (8, 8),  # LIFX Ceiling US
+        177: (8, 8),  # LIFX Ceiling Intl
+        201: (8, 8),  # LIFX Ceiling 13x26" US
+        202: (8, 8),  # LIFX Ceiling 13x26" Intl
+        217: (8, 8),  # LIFX Tube US
+        218: (8, 8),  # LIFX Tube Intl
+        219: (8, 8),  # LIFX Luna US
+        220: (8, 8),  # LIFX Luna Intl
+    }
+    
+    return matrix_sizes.get(product_id, (8, 8))  # Default to 8x8

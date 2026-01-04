@@ -74,9 +74,9 @@
         
         .devices {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
             gap: 1rem;
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
         }
         
@@ -181,7 +181,6 @@
             display: flex;
             flex-wrap: wrap;
             gap: 0.5rem;
-            margin-top: 1rem;
         }
         
         .preset-btn {
@@ -207,6 +206,115 @@
         .preset-btn.cool { background: #bfdbfe; }
         .preset-btn.daylight { background: #f0f9ff; }
         
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid var(--accent);
+        }
+        
+        .tab-btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.85rem;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+        }
+        
+        .tab-btn.active {
+            color: var(--text);
+            border-bottom-color: var(--success);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Effects */
+        .effects-section h4 {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+        
+        .effect-btns {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+        
+        .effect-btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            background: var(--accent);
+            color: var(--text);
+        }
+        
+        .effect-btn:hover {
+            opacity: 0.9;
+        }
+        
+        .effect-btn.stop {
+            background: var(--error);
+            color: #000;
+        }
+        
+        .effect-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: center;
+            margin-top: 0.5rem;
+            padding: 0.5rem;
+            background: rgba(0,0,0,0.2);
+            border-radius: 6px;
+        }
+        
+        .effect-option {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+        }
+        
+        .effect-option label {
+            color: var(--text-muted);
+        }
+        
+        .effect-option input[type="range"] {
+            width: 80px;
+            height: 6px;
+            border-radius: 3px;
+            -webkit-appearance: none;
+            background: var(--accent);
+        }
+        
+        .effect-option input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--text);
+            cursor: pointer;
+        }
+        
+        .effect-option input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+        }
+        
         .loading {
             text-align: center;
             padding: 3rem;
@@ -224,7 +332,7 @@
                 grid-template-columns: 1fr;
             }
             
-            .presets {
+            .presets, .effect-btns {
                 justify-content: center;
             }
         }
@@ -296,6 +404,19 @@
             }
         }
         
+        function switchTab(serial, tabName) {
+            const device = document.querySelector(`[data-serial="${serial}"]`);
+            if (!device) return;
+            
+            device.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.tab === tabName);
+            });
+            
+            device.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.toggle('active', content.dataset.tab === tabName);
+            });
+        }
+        
         function renderDevices() {
             const container = document.getElementById('devices');
             const loading = document.getElementById('loading');
@@ -325,48 +446,122 @@
                     
                     <div class="color-preview" id="preview-${d.serial}" style="background: ${getPreviewColor(d)}"></div>
                     
-                    <div class="sliders">
-                        <div class="slider-row">
-                            <label>Hue</label>
-                            <input type="range" min="0" max="360" value="${d.hue}" 
-                                   oninput="updateSlider('${d.serial}', 'hue', this.value)"
-                                   style="background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)">
-                            <span class="value" id="hue-val-${d.serial}">${d.hue}°</span>
-                        </div>
-                        <div class="slider-row">
-                            <label>Saturation</label>
-                            <input type="range" min="0" max="100" value="${d.saturation}"
-                                   oninput="updateSlider('${d.serial}', 'sat', this.value)">
-                            <span class="value" id="sat-val-${d.serial}">${d.saturation}%</span>
-                        </div>
-                        <div class="slider-row">
-                            <label>Brightness</label>
-                            <input type="range" min="0" max="100" value="${d.brightness}"
-                                   oninput="updateSlider('${d.serial}', 'bright', this.value)">
-                            <span class="value" id="bright-val-${d.serial}">${d.brightness}%</span>
-                        </div>
-                        <div class="slider-row">
-                            <label>Kelvin</label>
-                            <input type="range" min="1500" max="9000" value="${d.kelvin}"
-                                   oninput="updateSlider('${d.serial}', 'kelvin', this.value)"
-                                   style="background: linear-gradient(to right, #ff9329, #fff, #c9e2ff)">
-                            <span class="value" id="kelvin-val-${d.serial}">${d.kelvin}K</span>
+                    <div class="tabs">
+                        <button class="tab-btn active" data-tab="color" onclick="switchTab('${d.serial}', 'color')">Color</button>
+                        <button class="tab-btn" data-tab="presets" onclick="switchTab('${d.serial}', 'presets')">Presets</button>
+                        <button class="tab-btn" data-tab="effects" onclick="switchTab('${d.serial}', 'effects')">Effects</button>
+                    </div>
+                    
+                    <div class="tab-content active" data-tab="color">
+                        <div class="sliders">
+                            <div class="slider-row">
+                                <label>Hue</label>
+                                <input type="range" min="0" max="360" value="${d.hue}" 
+                                       oninput="updateSlider('${d.serial}', 'hue', this.value)"
+                                       style="background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)">
+                                <span class="value" id="hue-val-${d.serial}">${d.hue}°</span>
+                            </div>
+                            <div class="slider-row">
+                                <label>Saturation</label>
+                                <input type="range" min="0" max="100" value="${d.saturation}"
+                                       oninput="updateSlider('${d.serial}', 'sat', this.value)">
+                                <span class="value" id="sat-val-${d.serial}">${d.saturation}%</span>
+                            </div>
+                            <div class="slider-row">
+                                <label>Brightness</label>
+                                <input type="range" min="0" max="100" value="${d.brightness}"
+                                       oninput="updateSlider('${d.serial}', 'bright', this.value)">
+                                <span class="value" id="bright-val-${d.serial}">${d.brightness}%</span>
+                            </div>
+                            <div class="slider-row">
+                                <label>Kelvin</label>
+                                <input type="range" min="1500" max="9000" value="${d.kelvin}"
+                                       oninput="updateSlider('${d.serial}', 'kelvin', this.value)"
+                                       style="background: linear-gradient(to right, #ff9329, #fff, #c9e2ff)">
+                                <span class="value" id="kelvin-val-${d.serial}">${d.kelvin}K</span>
+                            </div>
                         </div>
                     </div>
                     
-                    <div class="presets">
-                        <button class="preset-btn red" onclick="applyPreset('${d.serial}', 'red')">Red</button>
-                        <button class="preset-btn orange" onclick="applyPreset('${d.serial}', 'orange')">Orange</button>
-                        <button class="preset-btn yellow" onclick="applyPreset('${d.serial}', 'yellow')">Yellow</button>
-                        <button class="preset-btn green" onclick="applyPreset('${d.serial}', 'green')">Green</button>
-                        <button class="preset-btn cyan" onclick="applyPreset('${d.serial}', 'cyan')">Cyan</button>
-                        <button class="preset-btn blue" onclick="applyPreset('${d.serial}', 'blue')">Blue</button>
-                        <button class="preset-btn purple" onclick="applyPreset('${d.serial}', 'purple')">Purple</button>
-                        <button class="preset-btn pink" onclick="applyPreset('${d.serial}', 'pink')">Pink</button>
-                        <button class="preset-btn warm" onclick="applyPreset('${d.serial}', 'warm')">Warm</button>
-                        <button class="preset-btn neutral" onclick="applyPreset('${d.serial}', 'neutral')">Neutral</button>
-                        <button class="preset-btn cool" onclick="applyPreset('${d.serial}', 'cool')">Cool</button>
-                        <button class="preset-btn daylight" onclick="applyPreset('${d.serial}', 'daylight')">Daylight</button>
+                    <div class="tab-content" data-tab="presets">
+                        <h4 style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">Colors</h4>
+                        <div class="presets">
+                            <button class="preset-btn red" onclick="applyPreset('${d.serial}', 'red')">Red</button>
+                            <button class="preset-btn orange" onclick="applyPreset('${d.serial}', 'orange')">Orange</button>
+                            <button class="preset-btn yellow" onclick="applyPreset('${d.serial}', 'yellow')">Yellow</button>
+                            <button class="preset-btn green" onclick="applyPreset('${d.serial}', 'green')">Green</button>
+                            <button class="preset-btn cyan" onclick="applyPreset('${d.serial}', 'cyan')">Cyan</button>
+                            <button class="preset-btn blue" onclick="applyPreset('${d.serial}', 'blue')">Blue</button>
+                            <button class="preset-btn purple" onclick="applyPreset('${d.serial}', 'purple')">Purple</button>
+                            <button class="preset-btn pink" onclick="applyPreset('${d.serial}', 'pink')">Pink</button>
+                        </div>
+                        <h4 style="font-size: 0.85rem; color: var(--text-muted); margin: 1rem 0 0.5rem 0;">Whites</h4>
+                        <div class="presets">
+                            <button class="preset-btn warm" onclick="applyPreset('${d.serial}', 'warm')">Warm</button>
+                            <button class="preset-btn neutral" onclick="applyPreset('${d.serial}', 'neutral')">Neutral</button>
+                            <button class="preset-btn cool" onclick="applyPreset('${d.serial}', 'cool')">Cool</button>
+                            <button class="preset-btn daylight" onclick="applyPreset('${d.serial}', 'daylight')">Daylight</button>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-content" data-tab="effects">
+                        <div class="effects-section">
+                            <h4>Waveform Effects</h4>
+                            <div class="effect-btns">
+                                <button class="effect-btn" onclick="applyEffect('${d.serial}', 'pulse')">Pulse</button>
+                                <button class="effect-btn" onclick="applyEffect('${d.serial}', 'breathe')">Breathe</button>
+                                <button class="effect-btn" onclick="applyEffect('${d.serial}', 'strobe')">Strobe</button>
+                                <button class="effect-btn" onclick="applyEffect('${d.serial}', 'saw')">Saw</button>
+                                <button class="effect-btn" onclick="applyEffect('${d.serial}', 'triangle')">Triangle</button>
+                                <button class="effect-btn stop" onclick="stopEffect('${d.serial}')">Stop</button>
+                            </div>
+                            
+                            <div class="effect-options">
+                                <div class="effect-option">
+                                    <label>Speed</label>
+                                    <input type="range" min="100" max="5000" value="1000" 
+                                           id="effect-period-${d.serial}" 
+                                           oninput="document.getElementById('period-val-${d.serial}').textContent = this.value + 'ms'">
+                                    <span id="period-val-${d.serial}">1000ms</span>
+                                </div>
+                                <div class="effect-option">
+                                    <label>Cycles</label>
+                                    <input type="range" min="1" max="50" value="10" 
+                                           id="effect-cycles-${d.serial}"
+                                           oninput="document.getElementById('cycles-val-${d.serial}').textContent = this.value">
+                                    <span id="cycles-val-${d.serial}">10</span>
+                                </div>
+                                <div class="effect-option">
+                                    <input type="checkbox" id="effect-loop-${d.serial}">
+                                    <label for="effect-loop-${d.serial}">Loop</label>
+                                </div>
+                            </div>
+                            
+                            <h4 style="margin-top: 1rem;">Color Cycle</h4>
+                            <div class="effect-btns">
+                                <button class="effect-btn" onclick="applyEffect('${d.serial}', 'rainbow')">Rainbow</button>
+                                <button class="effect-btn" onclick="applyEffect('${d.serial}', 'disco')">Disco</button>
+                                <button class="effect-btn" onclick="applyEffect('${d.serial}', 'party')">Party</button>
+                                <button class="effect-btn" onclick="applyEffect('${d.serial}', 'police')">Police</button>
+                            </div>
+                            
+                            <h4 style="margin-top: 1rem;">Ambient</h4>
+                            <div class="effect-btns">
+                                <button class="effect-btn" onclick="applyEffect('${d.serial}', 'candle')">Candle</button>
+                                <button class="effect-btn" onclick="applyEffect('${d.serial}', 'relax')">Relax</button>
+                                <button class="effect-btn" onclick="applyEffect('${d.serial}', 'sunrise')">Sunrise</button>
+                                <button class="effect-btn" onclick="applyEffect('${d.serial}', 'sunset')">Sunset</button>
+                            </div>
+                            
+                            <h4 style="margin-top: 1rem;">Matrix (Ceiling/Tile)</h4>
+                            <div class="effect-btns">
+                                <button class="effect-btn" onclick="applyEffect('${d.serial}', 'matrix_rainbow')">Rainbow</button>
+                                <button class="effect-btn" onclick="applyEffect('${d.serial}', 'matrix_wave')">Wave</button>
+                                <button class="effect-btn" onclick="applyEffect('${d.serial}', 'matrix_flame')">Flame</button>
+                                <button class="effect-btn" onclick="applyEffect('${d.serial}', 'matrix_morph')">Morph</button>
+                                <button class="effect-btn" onclick="applyEffect('${d.serial}', 'matrix_sky')">Sky</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             `).join('');
@@ -531,6 +726,45 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ preset })
             });
+        }
+        
+        async function applyEffect(serial, effect) {
+            const periodEl = document.getElementById(`effect-period-${serial}`);
+            const cyclesEl = document.getElementById(`effect-cycles-${serial}`);
+            const loopEl = document.getElementById(`effect-loop-${serial}`);
+            
+            const period = periodEl ? parseInt(periodEl.value) : 1000;
+            const cycles = loopEl && loopEl.checked ? 1000000 : (cyclesEl ? parseInt(cyclesEl.value) : 10);
+            
+            await fetch(`${API}/api/device/${serial}/effect`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ effect, period, cycles })
+            });
+        }
+        
+        async function stopEffect(serial) {
+            // Stop any running effect on the server
+            await fetch(`${API}/api/device/${serial}/stop`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            });
+            
+            // Also restore the device to its current color
+            const device = getDeviceState(serial);
+            if (device) {
+                await fetch(`${API}/api/device/${serial}/color`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        h: device.hue,
+                        s: device.saturation,
+                        b: device.brightness,
+                        k: device.kelvin
+                    })
+                });
+            }
         }
         
         // Initial load
